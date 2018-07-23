@@ -40,7 +40,7 @@ var zipper = new S3Zipper(config);
 zipper.filterOutFiles= function(file){
     if(file.Key.indexOf('.tmp') >= 0) // filter out temp files
         return null;
-    else 
+    else
       return file;
 };
 ```
@@ -48,7 +48,7 @@ zipper.filterOutFiles= function(file){
 ### Zip to local file
 ```
 zipper.zipToFile ({
-        s3FolderName: 'myBucketFolderName'
+        s3Prefix: 'myBucketFolderName/'
         , startKey: 'keyOfLastFileIZipped' // could keep null
         , zipFileName: './myLocalFile.zip'
         , recursive: true
@@ -70,7 +70,7 @@ app.all('/', function (request, response) {
     response.set('content-type', 'application/zip') // optional
     zipper.streamZipDataTo({
         pipe: response
-        , folderName: 'myBucketFolderName'
+        , prefix: 'myBucketFolderName/'
         , startKey: 'keyOfLastFileIZipped' // could keep null
         , recursive, true
         }
@@ -87,7 +87,7 @@ app.all('/', function (request, response) {
 ### Zip fragments to local file system with the filename pattern with a maximum file count
 ```
 zipper.zipToFileFragments ({
-        s3FolderName:'myBucketFolderName'
+        s3Prefix:'myBucketFolderName/'
         ,startKey: null
         ,zipFileName './myLocalFile.zip'
         ,maxFileCount: 5
@@ -111,7 +111,7 @@ zipper.zipToFileFragments ({
 ```
 /// if no path is given to S3 zip file then it will be placed in the same folder
 zipper.zipToS3File ({
-        s3FolderName: 'myBucketFolderName'
+        s3Prefix: 'myBucketFolderName/'
         , startKey: 'keyOfLastFileIZipped' // optional
         , s3ZipFileName: 'myS3File.zip'
     },function(err,result){
@@ -128,7 +128,7 @@ zipper.zipToS3File ({
 ### Zip fragments to S3
 ```
 zipper.zipToS3FileFragments({
-    s3FolderName: 'myBucketFolderName'
+    s3Prefix: 'myBucketFolderName/'
     , startKey: 'keyOfLastFileIZipped' // optional
     , s3ZipFileName: 'myS3File.zip'
     , maxFileCount: 5
@@ -177,7 +177,7 @@ Override this function when you want to filter out certain files. The `file` par
 ### `getFiles: function(params,callback)`
 Get a list of files in the bucket folder
 * `params` object
-    * `folderName` : the name of the folder in the bucket
+    * `prefix` : the name of the folder in the bucket
     * `startKey`: optional. return files listed after this file key
     * `recursive`: bool optional. to zip nested folders or not
 * `callback(err,result)`: the function you want called when the list returns
@@ -190,7 +190,7 @@ Get a list of files in the bucket folder
 If you want to get a stream to pipe raw data to. For example if you wanted to stream the zip file directly to an http response
 * `params` object
     * `pipe`: the pipe to which you want the stream to feed
-    * `folderName`: the name of the bucket folder you want to stream
+    * `prefix`: the name of the bucket folder you want to stream
     * `startKey`: optional. start zipping after this file key
     * `recursive`: bool optional. to zip nested folders or not
 * `callback(err,result)`: call this function when done
@@ -200,7 +200,7 @@ If you want to get a stream to pipe raw data to. For example if you wanted to st
 ### `zipToS3File: function (params ,callback)`
 Zip files in an s3 folder and place the zip file back on s3
 * `params` object
-    * `s3FolderName`: the name of the bucket folder you want to stream
+    * `s3Prefix`: the name of the bucket folder you want to stream
     * `startKey`: optional. start zipping after this file key
     * `s3FilerName`: the name of the new s3 zip file including its path. if no path is given it will defult to the same s3 folder
     * `recursive`: bool optional. to zip nested folders or not
@@ -210,7 +210,7 @@ Zip files in an s3 folder and place the zip file back on s3
 
 ### `zipToS3FileFragments: function (params , callback)`
 * `params` object
-    * `s3FolderName`: the name of the bucket folder you want to stream
+    * `s3Prefix`: the name of the bucket folder you want to stream
     * `startKey`: optional. start zipping after this file key
     * `s3ZipFileName`: the pattern of the name of the S3 zip files to be uploaded. Fragments will have an underscore and index at the end of the file name example ["allImages_1.zip","allImages_2.zip","allImages_3.zip"]
     * `maxFileCount`: Optional. maximum number of files to zip in a single fragment.
@@ -221,9 +221,9 @@ Zip files in an s3 folder and place the zip file back on s3
   * `results`: the array of results
 
 ### `zipToFile: function (params ,callback)`
-Zip files to a local zip file. 
+Zip files to a local zip file.
 * `params` object
-    * `s3FolderName`: the name of the bucket folder you want to stream
+    * `s3Prefix`: the name of the bucket folder you want to stream
     * `startKey`: optional. start zipping after this file key
     * `zipFileName`: the name of the new local zip file including its path.
     * `recursive`: bool optional. to zip nested folders or not
@@ -233,7 +233,7 @@ Zip files to a local zip file.
 
 ### `zipToFileFragments: function (params,callback)`
 * `params` object
-    * `s3FolderName`: the name of the bucket folder you want to stream
+    * `s3Prefix`: the name of the bucket folder you want to stream
     * `startKey`: optional. start zipping after this file key
     * `zipFileName`: the pattern of the name of the zip files to be uploaded. Fragments will have an underscore and index at the end of the file name example ["allImages_1.zip","allImages_2.zip","allImages_3.zip"]
     * `maxFileCount`: Optional. maximum number of files to zip in a single fragment.

@@ -4,6 +4,7 @@ var async = require('async');
 var AWS = require('aws-sdk');
 var fs = require('fs');
 var s3 = require('s3');
+var s = require("underscore.string");
 
 function S3Zipper(awsConfig) {
     var self = this
@@ -59,17 +60,16 @@ S3Zipper.prototype = {
     , filterOutFiles: function (fileObj) {
         return fileObj;
     }
-    , calculateFileName: function (f) {
-        var name = f.Key.split("/");
-        name.shift();
-        name = name.join("/");
-        return name;
-
+    , calculateFileName: function (f, prefix) {
+        if (s.startsWith(f.Key, prefix)) {
+            return f.Key.substring(prefix.length);
+        }
+        return f.Key;
     }
 
     /*
      params={
-     folderName: the name of the folder within the s3 bucket
+     prefix: the name of the prefix within the s3 bucket
      , startKey: the key of the file you want to start after. keep null if you want to start from the first file
      , maxFileCount: an integer that caps off how many files to zip at a time
      , maxFileSize: max total size of files before they are zipped
@@ -81,7 +81,7 @@ S3Zipper.prototype = {
 
         if(arguments.length == 5){ //for backwards comparability
             params={
-                folderName: arguments[0]
+                prefix: arguments[0]
                 , startKey: arguments[1]
                 , maxFileCount: arguments[2]
                 , maxFileSize: arguments[3]
@@ -90,11 +90,12 @@ S3Zipper.prototype = {
             callback = arguments[4];
         }
 
+        if (!params.prefix) params.prefix = "";
 
         var bucketParams = {
             Bucket: this.awsConfig.bucket, /* required */
             Delimiter: "/",
-            Prefix: params.folderName + "/"
+            Prefix: params.prefix
         };
 
         if (params.startKey)
@@ -170,7 +171,7 @@ S3Zipper.prototype = {
     /*
      params: {
         pipe : pipe stream
-         , folderName: folder name to zip
+         , prefix: folder name to zip
          , startKey: the key of the file you want to start after. keep null if you want to start from the first file
          , maxFileCount: an integer that caps off how many files to zip at a time
          , maxFileSize: max total size of files before they are zipped
@@ -179,11 +180,9 @@ S3Zipper.prototype = {
        , callback : function
     */
     , streamZipDataTo: function (params, callback) {
-        if (!params || !params.folderName) {
-            console.error('folderName required');
-            return null;
+        if (!params || !params.prefix) {
+            params.prefix = "";
         }
-
 
         var zip = new archiver.create('zip');
         if (params.pipe) zip.pipe(params.pipe);
@@ -202,7 +201,7 @@ S3Zipper.prototype = {
                             callback(err);
                         else {
 
-                            var name = t.calculateFileName(f);
+                            var name = t.calculateFileName(f, params.prefix);
 
                             if (name === ""){
                                 callback(null, f);
@@ -270,7 +269,7 @@ S3Zipper.prototype = {
 
     /*
      params: {
-        s3FolderName: the name of the folder within the S3 bucket
+        s3Prefix: the name of the folder within the S3 bucket
         , startKey: the key of the file you want to start after. keep null if you want to start from the first file
         , s3ZipFileName: the name of the file you to zip to and upload to S3
         , recursive: indicates to zip nested folders or not
@@ -282,7 +281,7 @@ S3Zipper.prototype = {
         if(arguments.length == 4){
             // for backward compatibility
             params = {
-                s3FolderName:arguments[0]
+                s3Prefix:arguments[0]
                 ,startKey:arguments[1]
                 ,s3ZipFileName:arguments[2]
                 ,recursive: false
@@ -290,11 +289,13 @@ S3Zipper.prototype = {
             callback= arguments[3];
         }
 
+        if (!params.s3Prefix) params.s3Prefix = "";
+
         var t = this;
         params.zipFileName = '/tmp/__' + Date.now() + '.zip';
 
         if (params.s3ZipFileName.indexOf('/') < 0)
-            params.s3ZipFileName = params.s3FolderName + "/" + params.s3ZipFileName;
+            params.s3ZipFileName = params.s3Prefix + params.s3ZipFileName;
 
 
         this.zipToFile(params, function (err, r) {
@@ -325,7 +326,7 @@ S3Zipper.prototype = {
 
     /*
      params: {
-        s3FolderName: the name of the folder within the S3 bucket
+        s3Prefix: the name of the folder within the S3 bucket
         , startKey: the key of the file you want to start after. keep null if you want to start from the first file
         , s3ZipFileName: the name of the file you to zip to and upload to S3
         , maxFileCount: an integer that caps off how many files to zip at a time
@@ -339,7 +340,7 @@ S3Zipper.prototype = {
         if(arguments.length == 6){
             // for backward compatibility
             params = {
-                s3FolderName:arguments[0]
+                s3Prefix:arguments[0]
                 , startKey:arguments[1]
                 , s3ZipFileName:arguments[2]
                 , maxFileCount:arguments[3]
@@ -349,12 +350,14 @@ S3Zipper.prototype = {
             callback= arguments[5];
         }
 
+        if (!params.s3Prefix) params.s3Prefix = "";
+
         var t = this;
         ///local file
         params.zipFileName = '/tmp/__' + Date.now() + '.zip';
 
         if (params.s3ZipFileName.indexOf('/') < 0)
-            params.s3ZipFileName = params.s3FolderName + "/" + params.s3ZipFileName;
+            params.s3ZipFileName = params.s3Prefix + params.s3ZipFileName;
 
         var finalResult;
 
@@ -395,7 +398,7 @@ S3Zipper.prototype = {
     }
     /*
      params={
-        s3FolderName: the name of the folder within the s3 bucket
+        s3Prefix: the name of the folder within the s3 bucket
         , startKey: the key of the file you want to start after. keep null if you want to start from the first file
         , zipFileName: zip file name
         , recursive: option to loop through nested folders
@@ -407,7 +410,7 @@ S3Zipper.prototype = {
         if(arguments.length == 4){
             // for backward compatibility
             params = {
-                s3FolderName:arguments[0]
+                s3Prefix:arguments[0]
                 , startKey:arguments[1]
                 , zipFileName:arguments[2]
                 , recursive: false
@@ -415,10 +418,12 @@ S3Zipper.prototype = {
             callback= arguments[3];
         }
 
+        if (!params.s3Prefix) params.s3Prefix = "";
+
         var filestream = fs.createWriteStream(params.zipFileName);
         this.streamZipDataTo({
             pipe: filestream
-            ,folderName: params.s3FolderName
+            ,prefix: params.s3Prefix
             , startKey: params.startKey
             , maxFileCount: params.maxFileCount
             , maxFileSize: params.maxFileSize
@@ -433,7 +438,7 @@ S3Zipper.prototype = {
 
     /*
      params: {
-        s3FolderName: the name of the folder within the S3 bucket
+        s3Prefix: the name of the folder within the S3 bucket
         , startKey: the key of the file you want to start after. keep null if you want to start from the first file
         , zipFileName: the name of the file you to zip to and upload to S3
         , maxFileCount: an integer that caps off how many files to zip at a time
@@ -447,7 +452,7 @@ S3Zipper.prototype = {
         if(arguments.length == 6){
             // for backward compatibility
             params = {
-                s3FolderName:arguments[0]
+                s3Prefix:arguments[0]
                 , startKey:arguments[1]
                 , s3ZipFileName:arguments[2]
                 , maxFileCount:arguments[3]
@@ -456,6 +461,8 @@ S3Zipper.prototype = {
             };
             callback= arguments[5];
         }
+
+        if (!params.s3Prefix) params.s3Prefix = "";
 
         var events = {
             onFileZipped: function () {
@@ -496,7 +503,7 @@ S3Zipper.prototype = {
             var fileStream = fs.createWriteStream(fragFileName);
             t.streamZipDataTo({
                 pipe : fileStream
-                , folderName: params.s3FolderName
+                , prefix: params.s3Prefix
                 , startKey:startKey
                 , maxFileCount:params.maxFileCount
                 , maxFileSize:params.maxFileSize
