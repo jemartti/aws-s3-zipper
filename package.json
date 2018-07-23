@@ -4,9 +4,9 @@
   "description": "Zip files from and to an Amazon AWS S3 Bucket directory as a stream, file or fragments. Allows filtering files.",
   "main": "index.js",
   "dependencies": {
-    "archiver": "0.21.*",
-    "async": "1.5.*",
-    "aws-sdk": "2.2.*",
+    "archiver": "2.1.*",
+    "async": "2.6.*",
+    "aws-sdk": "2.279.*",
     "s3": "latest",
     "underscore.string": "^3.3.4"
   },
