@@ -52,6 +52,7 @@ zipper.zipToFile ({
         , startKey: 'keyOfLastFileIZipped' // could keep null
         , zipFileName: './myLocalFile.zip'
         , recursive: true
+        , fileList: [] // could keep null
     }
     ,function(err,result){
         if(err)
@@ -72,7 +73,8 @@ app.all('/', function (request, response) {
         pipe: response
         , prefix: 'myBucketFolderName/'
         , startKey: 'keyOfLastFileIZipped' // could keep null
-        , recursive, true
+        , recursive: true
+        , fileList: [] // could keep null
         }
         ,function (err, result) {
             if(err)
@@ -92,6 +94,7 @@ zipper.zipToFileFragments ({
         ,zipFileName './myLocalFile.zip'
         ,maxFileCount: 5
         ,maxFileSize: 1024*1024
+        ,fileList: [] // could keep null
     }, function(err,results){
         if(err)
                console.error(err);
@@ -114,6 +117,7 @@ zipper.zipToS3File ({
         s3Prefix: 'myBucketFolderName/'
         , startKey: 'keyOfLastFileIZipped' // optional
         , s3ZipFileName: 'myS3File.zip'
+        , fileList: [] // could keep null
     },function(err,result){
         if(err)
             console.error(err);
@@ -133,6 +137,7 @@ zipper.zipToS3FileFragments({
     , s3ZipFileName: 'myS3File.zip'
     , maxFileCount: 5
     , maxFileSize: 1024*1024
+    , fileList: [] // could keep null
     },function(err, results){
     if(err)
         console.error(err);
@@ -193,6 +198,7 @@ If you want to get a stream to pipe raw data to. For example if you wanted to st
     * `prefix`: the name of the bucket folder you want to stream
     * `startKey`: optional. start zipping after this file key
     * `recursive`: bool optional. to zip nested folders or not
+    * `fileList`: array optional. provides a list of files to zip, subject to prefix. overrides recursive and startKey.
 * `callback(err,result)`: call this function when done
   * `err`: the error object if any
   * `result`: the resulting archiver zip object with attached property 'manifest' whcih is an array of files it zipped
@@ -202,8 +208,9 @@ Zip files in an s3 folder and place the zip file back on s3
 * `params` object
     * `s3Prefix`: the name of the bucket folder you want to stream
     * `startKey`: optional. start zipping after this file key
-    * `s3FilerName`: the name of the new s3 zip file including its path. if no path is given it will defult to the same s3 folder
+    * `s3FileName`: the name of the new s3 zip file including its path. if no path is given it will defult to the same s3 folder
     * `recursive`: bool optional. to zip nested folders or not
+    * `fileList`: array optional. provides a list of files to zip, subject to s3Prefix. overrides recursive and startKey.
 * `callback(err,result)`: call this function when done
   * `err`: the error object if any
   * `result`: the resulting archiver zip object with attached property 'manifest' whcih is an array of files it zipped
@@ -216,6 +223,7 @@ Zip files in an s3 folder and place the zip file back on s3
     * `maxFileCount`: Optional. maximum number of files to zip in a single fragment.
     * `maxFileSize`: Optional. Maximum Bytes to fit into a single zip fragment. Note: If a file is found larger than the limit a separate fragment will becreated just for it.
     * `recursive`: bool optional. to zip nested folders or not
+    * `fileList`: array optional. provides a list of files to zip, subject to s3Prefix. overrides recursive, startKey, maxFileCount, and maxFileSize.
 * `callback(err,result)`: call this function when done
   * `err`: the error object if any
   * `results`: the array of results
@@ -227,6 +235,7 @@ Zip files to a local zip file.
     * `startKey`: optional. start zipping after this file key
     * `zipFileName`: the name of the new local zip file including its path.
     * `recursive`: bool optional. to zip nested folders or not
+    * `fileList`: array optional. provides a list of files to zip, subject to s3Prefix. overrides recursive and startKey.
 * `callback(err,result)`: call this function when done
   * `err`: the error object if any
   * `result`: the resulting archiver zip object with attached property 'manifest' whcih is an array of files it zipped
@@ -239,6 +248,7 @@ Zip files to a local zip file.
     * `maxFileCount`: Optional. maximum number of files to zip in a single fragment.
     * `maxFileSize`: Optional. Maximum Bytes to fit into a single zip fragment. Note: If a file is found larger than the limit a separate fragment will becreated just for it.
     * `recursive`: bool optional. to zip nested folders or not
+    * `fileList`: array optional. provides a list of files to zip, subject to s3Prefix. overrides recursive, startKey, maxFileSize, and maxFileCount.
 * `callback(err,result)`: call this function when done
   * `err`: the error object if any
   * `results`: the array of results

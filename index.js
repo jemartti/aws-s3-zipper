@@ -61,10 +61,10 @@ S3Zipper.prototype = {
         return fileObj;
     }
     , calculateFileName: function (f, prefix) {
-        if (s.startsWith(f.Key, prefix)) {
-            return f.Key.substring(prefix.length);
+        if (s.startsWith(f, prefix)) {
+            return f.substring(prefix.length);
         }
-        return f.Key;
+        return f;
     }
 
     /*
@@ -145,7 +145,7 @@ S3Zipper.prototype = {
                         console.warn('Single file size exceeds max allowed size', data.Contents[i].Size, '>', params.maxFileSize, passedFile);
                         if (result.length == 0) {
                             console.warn('Will zip large file on its own', passedFile.Key);
-                            result.push(passedFile);
+                            result.push(passedFile.Key);
                             totalSizeOfPassedFiles += passedFile.Size;
                         }
                         else
@@ -156,7 +156,7 @@ S3Zipper.prototype = {
                         break;
                     }
                     else {
-                        result.push(passedFile);
+                        result.push(passedFile.Key);
                         totalSizeOfPassedFiles += passedFile.Size;
                     }
                 }
@@ -176,6 +176,7 @@ S3Zipper.prototype = {
          , maxFileCount: an integer that caps off how many files to zip at a time
          , maxFileSize: max total size of files before they are zipped
          , recursive: option to loop through nested folders
+         , fileList: an array of files in the bucket. Overrides other params.
        }
        , callback : function
     */
@@ -189,52 +190,64 @@ S3Zipper.prototype = {
 
         var t = this;
 
-        this.getFiles(params, function (err, clearedFiles) {
-            if (err)
-                console.error(err);
-            else {
-                var files = clearedFiles.files;
-                console.log("files", files);
-                async.map(files, function (f, callback) {
-                    t.s3bucket.getObject({Bucket: t.awsConfig.bucket, Key: f.Key}, function (err, data) {
-                        if (err)
-                            callback(err);
+        if (params.fileList && params.fileList.length > 0) {
+            for (var i = 0; i < params.fileList; ++i) {
+                params.fileList[i] = params.prefix + params.fileList[i];
+            }
+            console.log("files", params.fileList);
+            asyncMap(params.fileList, params.fileList.length, params.fileList[params.fileList.length - 1]);
+        } else {
+            this.getFiles(params, function (err, clearedFiles) {
+                if (err)
+                    console.error(err);
+                else {
+                    var files = clearedFiles.files;
+                    console.log("files", files);
+                    asyncMap(files, clearedFiles.totalFilesScanned, clearedFiles.lastScannedFile);
+                }
+            });
+        }
+
+        function asyncMap(files, totalFilesScanned, lastScannedFile) {
+            async.map(files, function (f, callback) {
+                t.s3bucket.getObject({ Bucket: t.awsConfig.bucket, Key: f }, function (err, data) {
+                    if (err)
+                        callback(err);
+                    else {
+
+                        var name = t.calculateFileName(f, params.prefix);
+
+                        if (name === "") {
+                            callback(null, f);
+                            return;
+                        }
                         else {
+                            console.log('zipping ', name, '...');
 
-                            var name = t.calculateFileName(f, params.prefix);
-
-                            if (name === ""){
-                                callback(null, f);
-                                return;
-                            }
-                            else {
-                                console.log('zipping ', name, '...');
-
-                                zip.append(data.Body, {name: name});
-                                callback(null, f);
-                            }
-
+                            zip.append(data.Body, { name: name });
+                            callback(null, f);
                         }
 
-                    });
-
-                }, function (err, results) {
-                    zip.manifest = results;
-                    zip.on('finish',function(){
-                        callback(err, {
-                            zip: zip,
-                            zippedFiles: results,
-                            totalFilesScanned: clearedFiles.totalFilesScanned,
-                            lastScannedFile: clearedFiles.lastScannedFile
-                        });
-                    });
-                    zip.finalize();
-
-
+                    }
 
                 });
-            }
-        });
+
+            }, function (err, results) {
+                zip.manifest = results;
+                zip.on('finish', function () {
+                    callback(err, {
+                        zip: zip,
+                        zippedFiles: results,
+                        totalFilesScanned: totalFilesScanned,
+                        lastScannedFile: lastScannedFile
+                    });
+                });
+                zip.finalize();
+
+
+
+            });
+        };
 
     }
 
@@ -273,6 +286,7 @@ S3Zipper.prototype = {
         , startKey: the key of the file you want to start after. keep null if you want to start from the first file
         , s3ZipFileName: the name of the file you to zip to and upload to S3
         , recursive: indicates to zip nested folders or not
+        , fileList: an array of files in the bucket. Overrides other params.
        }
        , callback: function
     */
@@ -285,6 +299,7 @@ S3Zipper.prototype = {
                 ,startKey:arguments[1]
                 ,s3ZipFileName:arguments[2]
                 ,recursive: false
+                ,fileList: null
             };
             callback= arguments[3];
         }
@@ -332,6 +347,7 @@ S3Zipper.prototype = {
         , maxFileCount: an integer that caps off how many files to zip at a time
         , maxFileSize: max total size of files before they are zipped
         , recursive: indicates to zip nested folders or not
+        , fileList: an array of files in the bucket. Overrides other params.
      }
      , callback: function
     */
@@ -346,6 +362,7 @@ S3Zipper.prototype = {
                 , maxFileCount:arguments[3]
                 , maxFileSize:arguments[4]
                 , recursive: false
+                , fileList: null
             };
             callback= arguments[5];
         }
@@ -402,6 +419,7 @@ S3Zipper.prototype = {
         , startKey: the key of the file you want to start after. keep null if you want to start from the first file
         , zipFileName: zip file name
         , recursive: option to loop through nested folders
+        , fileList: an array of files in the bucket. Overrides other params.
      };
      callback = function that is called back when completed
      * */
@@ -414,6 +432,7 @@ S3Zipper.prototype = {
                 , startKey:arguments[1]
                 , zipFileName:arguments[2]
                 , recursive: false
+                , fileList: null
             };
             callback= arguments[3];
         }
@@ -428,6 +447,7 @@ S3Zipper.prototype = {
             , maxFileCount: params.maxFileCount
             , maxFileSize: params.maxFileSize
             , recursive: params.recursive
+            , fileList: params.fileList
         }, function (err, result) {
             setTimeout(function () {
                 callback(err, result);
@@ -444,6 +464,7 @@ S3Zipper.prototype = {
         , maxFileCount: an integer that caps off how many files to zip at a time
         , maxFileSize: max total size of files before they are zipped
         , recursive: indicates to zip nested folders or not
+        , fileList: an array of files in the bucket. Overrides other params.
      }
      , callback: function
      */
@@ -458,6 +479,7 @@ S3Zipper.prototype = {
                 , maxFileCount:arguments[3]
                 , maxFileSize:arguments[4]
                 , recursive: false
+                , fileList: null
             };
             callback= arguments[5];
         }
@@ -507,7 +529,8 @@ S3Zipper.prototype = {
                 , startKey:startKey
                 , maxFileCount:params.maxFileCount
                 , maxFileSize:params.maxFileSize
-                , recursive: params.recursive }, function (err, result) {
+                , recursive: params.recursive
+                , fileList: params.fileList }, function (err, result) {
 
                 if (err)
                     report.errors.push(err);
